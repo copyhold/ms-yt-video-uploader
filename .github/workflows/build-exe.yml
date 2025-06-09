@@ -55,6 +55,17 @@ jobs:
         run: brew install ffmpeg
 
       # --- Common Steps ---
+      - name: Create client_secret.json
+        # This step runs on all operating systems in the matrix
+        shell: bash
+        run: |
+          echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
+          
+          # Optional: Verify the file was created
+          if [ ! -f client_secret.json ]; then
+            echo "client_secret.json was not created!"
+            exit 1
+          fi
 
       - name: Install Python dependencies
         run: |
