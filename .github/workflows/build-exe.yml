@@ -21,73 +21,32 @@ jobs:
         with:
           python-version: '3.9'
 
-      # --- Platform-Specific FFmpeg Setup ---
-
-      - name: Download and Extract FFmpeg (Windows)
-        if: runner.os == 'Windows'
-        # This uses PowerShell, the default shell on Windows runners
-        run: |
-          # Download the latest stable FFmpeg build from gyan.dev
-          Invoke-WebRequest -Uri https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.zip -OutFile ffmpeg.zip
-          
-          # Extract the archive into a directory named 'ffmpeg_files'
-          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg_files
-          
-          # Find ffmpeg.exe within the extracted subdirectories and copy it to the project root
-          $ffmpegPath = (Get-ChildItem -Path ./ffmpeg_files -Recurse -Filter ffmpeg.exe).FullName
-          Copy-Item -Path $ffmpegPath -Destination ./ffmpeg.exe
-          
-          # Verify that ffmpeg.exe is now in the root
-          if (-not (Test-Path ./ffmpeg.exe)) {
-            Write-Error "ffmpeg.exe not found after extraction!"
-            exit 1
-          }
-          Write-Host "ffmpeg.exe successfully placed in the workspace root."
-
-      - name: Install FFmpeg (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Install FFmpeg (macOS)
-        if: runner.os == 'macOS'
-        run: brew install ffmpeg
+      # --- NEW UNIFIED FFMPEG SETUP ---
+      - name: Setup FFmpeg
+        uses: federicociro/setup-ffmpeg@v3
+        # This action automatically downloads, extracts, and adds FFmpeg to the PATH
+        # for Windows, Linux, and macOS. No custom scripting needed.
 
       # --- Common Steps ---
-      - name: Create client_secret.json
-        # This step runs on all operating systems in the matrix
-        shell: bash
-        run: |
-          echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
-          
-          # Optional: Verify the file was created
-          if [ ! -f client_secret.json ]; then
-            echo "client_secret.json was not created!"
-            exit 1
-          fi
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
-      # --- Platform-Specific Build Commands ---
-
-      - name: Build executable with PyInstaller (Windows)
-        if: runner.os == 'Windows'
+      - name: Create client_secret.json
+        shell: bash
         run: |
-          pyinstaller --name "SermonUploader" ^
-                      --onefile ^
-                      --windowed ^
-                      --add-data "client_secret.json;." ^
-                      --add-binary "ffmpeg.exe;." ^
-                      app.py
+          echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
 
-      - name: Build executable with PyInstaller (Linux/macOS)
-        if: runner.os == 'Linux' || runner.os == 'macOS'
+      # --- UNIFIED BUILD COMMAND ---
+      # We no longer need to bundle ffmpeg.exe on Windows because setup-ffmpeg adds it to the PATH.
+      # This means the build command is now identical for all platforms.
+      - name: Build executable with PyInstaller
+        # Use a platform-agnostic shell and command
+        shell: bash 
         run: |
+          # The path separator for --add-data is ":" for bash on all platforms
           pyinstaller --name "SermonUploader" \
                       --onefile \
                       --windowed \
