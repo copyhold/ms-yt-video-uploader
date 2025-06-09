@@ -96,6 +96,16 @@ class VideoProcessorApp:
         self.log_text.pack(fill="both", expand=True)
         self.log_text.configure(state='disabled')
 
+        # --- Settings Tab ---
+        settings_tab = Frame(self.notebook)
+        self.notebook.add(settings_tab, text="Settings")
+        yt_frame = tk.LabelFrame(settings_tab, text="YouTube", padx=10, pady=10)
+        yt_frame.pack(padx=10, pady=10, fill="x")
+        self.connect_yt_button = tk.Button(yt_frame, text="Connect to YouTube", command=self.connect_youtube)
+        self.connect_yt_button.pack(side=tk.LEFT, padx=5)
+        self.yt_status_label = tk.Label(yt_frame, text="Not Connected", fg="red")
+        self.yt_status_label.pack(side=tk.LEFT, padx=5)
+
 
         # --- Input Files ---
         file_frame = tk.LabelFrame(content_frame, text="Input Files", padx=10, pady=10)
@@ -105,13 +115,6 @@ class VideoProcessorApp:
         self._create_file_entry(file_frame, "Russian Audio:", "audio_ru", 2)
         self._create_file_entry(file_frame, "English Audio:", "audio_en", 3)
 
-        # --- YouTube Connection ---
-        youtube_frame = tk.LabelFrame(content_frame, text="YouTube", padx=10, pady=10)
-        youtube_frame.pack(padx=10, pady=10, fill="x")
-        self.connect_yt_button = tk.Button(youtube_frame, text="Connect to YouTube", command=self.connect_youtube)
-        self.connect_yt_button.pack(side=tk.LEFT, padx=5)
-        self.yt_status_label = tk.Label(youtube_frame, text="Not Connected", fg="red")
-        self.yt_status_label.pack(side=tk.LEFT, padx=5)
 
         # --- Output Configuration (Placeholders, Segments, Titles/Descriptions) ---
         config_frame = tk.LabelFrame(content_frame, text="Output Configuration", padx=10, pady=10)
@@ -182,9 +185,11 @@ class VideoProcessorApp:
 
         self.process_and_upload_button = tk.Button(action_button_frame, text="Process & Upload", command=self.start_process_and_upload_thread)
         self.process_and_upload_button.pack(side=tk.LEFT, expand=True, padx=2)
-        
+        self.process_and_upload_tooltip = Tooltip(self.process_and_upload_button, "YouTube connection required to upload.")
+
         self.upload_existing_button = tk.Button(action_button_frame, text="Upload Existing Videos", command=self.start_upload_existing_thread)
         self.upload_existing_button.pack(side=tk.LEFT, expand=True, padx=2)
+        self.upload_existing_tooltip = Tooltip(self.upload_existing_button, "YouTube connection required to upload.")
 
         self.cancel_button = tk.Button(action_button_frame, text="Cancel Operation", command=self.cancel_current_operation, state=tk.DISABLED)
         self.cancel_button.pack(side=tk.LEFT, expand=True, padx=2)
@@ -236,19 +241,36 @@ class VideoProcessorApp:
             self.check_input_files_present()
 
     def check_input_files_present(self):
-        """Checks if all required input files are selected to enable process buttons."""
-        all_selected = all(fp.get() for fp in self.file_paths.values())
-        if self.is_operation_running: return # Don't change if an operation is active
+        """Enable/disable buttons based on file selection and YouTube connection."""
+        video_selected = bool(self.file_paths["video"].get())
+        audio_selected = any(self.file_paths[audio_key].get() for audio_key in ["audio_he", "audio_ru", "audio_en"])
+        can_process = video_selected and audio_selected
+        yt_connected = self.youtube_service is not None
 
-        if all_selected:
+        if self.is_operation_running:
+            return  # Don't change if an operation is active
+
+        # Process Only: needs video and at least one audio
+        if can_process:
             self.process_only_button.config(state=tk.NORMAL)
-            self.process_and_upload_button.config(state=tk.NORMAL if self.youtube_service else tk.DISABLED)
-            # Upload existing might be enabled if base video is selected, even if audio isn't (for a re-upload scenario)
-            self.upload_existing_button.config(state=tk.NORMAL if self.file_paths["video"].get() and self.youtube_service else tk.DISABLED)
         else:
             self.process_only_button.config(state=tk.DISABLED)
+
+        # Process & Upload: needs video, at least one audio, and YouTube connection
+        if can_process and yt_connected:
+            self.process_and_upload_button.config(state=tk.NORMAL)
+        else:
             self.process_and_upload_button.config(state=tk.DISABLED)
+
+        # Upload Existing: needs video and YouTube connection
+        if video_selected and yt_connected:
+            self.upload_existing_button.config(state=tk.NORMAL)
+        else:
             self.upload_existing_button.config(state=tk.DISABLED)
+
+        self.process_and_upload_tooltip.show_if_disabled()
+        self.upload_existing_tooltip.show_if_disabled()
+
 
     def connect_youtube(self):
         self.log_message("Connecting to YouTube...")
@@ -264,7 +286,9 @@ class VideoProcessorApp:
             self.log_message(f"YouTube connection failed: {e}")
             messagebox.showerror("YouTube Error", f"Failed to connect: {e}")
             self.yt_status_label.config(text="Connection Failed", fg="red")
-        self.check_input_files_present() # Re-check button states based on YT connection
+        # Ensure UI state is updated on the main thread
+        self.root.after(0, self.check_input_files_present)
+
 
     def _update_button_states(self):
         """Enable/disable buttons based on current operation state."""
@@ -274,10 +298,14 @@ class VideoProcessorApp:
             self.upload_existing_button.config(state=tk.DISABLED)
             self.connect_yt_button.config(state=tk.DISABLED)
             self.cancel_button.config(state=tk.NORMAL)
+            self.process_and_upload_tooltip.show_if_disabled()
+            self.upload_existing_tooltip.show_if_disabled()
         else:
             self.connect_yt_button.config(state=tk.NORMAL)
             self.cancel_button.config(state=tk.DISABLED)
             self.check_input_files_present() # This will correctly set process/upload buttons
+            self.process_and_upload_tooltip.show_if_disabled()
+            self.upload_existing_tooltip.show_if_disabled()
 
     def log_message(self, message): self.log_queue.put(message)
 
@@ -541,6 +569,48 @@ class SegmentDialog(simpledialog.Dialog):
             self.result = (start, end)
         except ValueError:
             messagebox.showerror("Input Error", "Please enter numeric values.", parent=self); self.result = None
+
+
+# --- Tooltip Helper ---
+class Tooltip:
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tipwindow = None
+        widget.bind("<Enter>", self.enter)
+        widget.bind("<Leave>", self.leave)
+
+    def showtip(self):
+        if self.tipwindow or self.widget['state'] == tk.NORMAL:
+            return
+        x, y, cx, cy = self.widget.bbox("insert")
+        x = x + self.widget.winfo_rootx() + 25
+        y = y + self.widget.winfo_rooty() + 20
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT, background="#ffffe0", relief=tk.SOLID, borderwidth=1, font=("tahoma", "8", "normal"))
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        tw = self.tipwindow
+        self.tipwindow = None
+        if tw:
+            tw.destroy()
+
+    def enter(self, event=None):
+        if self.widget['state'] == tk.DISABLED:
+            self.showtip()
+
+    def leave(self, event=None):
+        self.hidetip()
+
+    def show_if_disabled(self):
+        # Show/hide tooltip only if button is disabled and mouse is over it
+        if self.widget['state'] == tk.DISABLED:
+            pass # Will show on hover
+        else:
+            self.hidetip()
 
 
 if __name__ == "__main__":
