@@ -62,8 +62,14 @@ class VideoProcessorApp:
         }
 
 
-        # --- Main UI Structure (Scrollable Area and Fixed Bottom) ---
-        main_app_frame = Frame(root)
+        # --- Tabbed Interface ---
+        self.notebook = ttk.Notebook(root)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+
+        # --- Main UI Structure (Scrollable Area) in first tab ---
+        main_tab = Frame(self.notebook)
+        self.notebook.add(main_tab, text="Main")
+        main_app_frame = Frame(main_tab)
         main_app_frame.pack(fill=tk.BOTH, expand=True)
 
         self.canvas = Canvas(main_app_frame)
@@ -80,6 +86,16 @@ class VideoProcessorApp:
         self.canvas.bind_all("<Button-5>", self._on_mousewheel)
 
         content_frame = self.scrollable_frame # All scrollable content goes here
+
+        # --- Logs Tab ---
+        logs_tab = Frame(self.notebook)
+        self.notebook.add(logs_tab, text="Logs")
+        self.log_frame = tk.LabelFrame(logs_tab, text="Log", padx=10, pady=10)
+        self.log_frame.pack(padx=10, pady=10, fill="both", expand=True)
+        self.log_text = scrolledtext.ScrolledText(self.log_frame, wrap=tk.WORD, height=10)
+        self.log_text.pack(fill="both", expand=True)
+        self.log_text.configure(state='disabled')
+
 
         # --- Input Files ---
         file_frame = tk.LabelFrame(content_frame, text="Input Files", padx=10, pady=10)
@@ -174,13 +190,7 @@ class VideoProcessorApp:
         self.cancel_button.pack(side=tk.LEFT, expand=True, padx=2)
 
 
-        # --- Log Area (Fixed at the bottom) ---
-        log_frame = tk.LabelFrame(root, text="Log", padx=10, pady=10) # This frame is outside the scrollable area
-        log_frame.pack(padx=10, pady=10, fill="both", expand=True)
-        self.log_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, height=10)
-        self.log_text.pack(fill="both", expand=True)
-        self.log_text.configure(state='disabled')
-
+        # --- Log Area now handled in logs_tab above ---
         self.root.after(100, self.process_log_queue)
         self._update_button_states() # Initial button state
         self.check_input_files_present() # Initial check for enabling process buttons
