@@ -1,37 +1,71 @@
-name: Build Windows Executable
+name: Build Cross-Platform Executables
 
-# Controls when the action will run. 
 on:
-  # Triggers the workflow on push events but only for the main branch
   push:
     branches: [ "main" ]
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
 
     steps:
-      # 1. Checks out your repository's code under $GITHUB_WORKSPACE
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Sets up Python 3.9. You can change the version if needed.
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
-      # 3. Installs Python dependencies
-      - name: Install dependencies
+      # --- Platform-Specific FFmpeg Setup ---
+
+      - name: Download and Extract FFmpeg (Windows)
+        if: runner.os == 'Windows'
+        # This uses PowerShell, the default shell on Windows runners
+        run: |
+          # Download the latest stable FFmpeg build from gyan.dev
+          Invoke-WebRequest -Uri https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.zip -OutFile ffmpeg.zip
+          
+          # Extract the archive into a directory named 'ffmpeg_files'
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg_files
+          
+          # Find ffmpeg.exe within the extracted subdirectories and copy it to the project root
+          $ffmpegPath = (Get-ChildItem -Path ./ffmpeg_files -Recurse -Filter ffmpeg.exe).FullName
+          Copy-Item -Path $ffmpegPath -Destination ./ffmpeg.exe
+          
+          # Verify that ffmpeg.exe is now in the root
+          if (-not (Test-Path ./ffmpeg.exe)) {
+            Write-Error "ffmpeg.exe not found after extraction!"
+            exit 1
+          }
+          Write-Host "ffmpeg.exe successfully placed in the workspace root."
+
+      - name: Install FFmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install FFmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+
+      # --- Common Steps ---
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
 
-      # 4. Run PyInstaller
-      - name: Build executable with PyInstaller
+      # --- Platform-Specific Build Commands ---
+
+      - name: Build executable with PyInstaller (Windows)
+        if: runner.os == 'Windows'
         run: |
           pyinstaller --name "SermonUploader" ^
                       --onefile ^
@@ -39,10 +73,21 @@ jobs:
                       --add-data "client_secret.json;." ^
                       --add-binary "ffmpeg.exe;." ^
                       app.py
-                      
-      # 5. Upload the artifact
-      - name: Upload executable artifact
+
+      - name: Build executable with PyInstaller (Linux/macOS)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: |
+          pyinstaller --name "SermonUploader" \
+                      --onefile \
+                      --windowed \
+                      --add-data "client_secret.json:." \
+                      app.py
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SermonUploader-Windows-x64
-          path: dist/SermonUploader.exe
+          name: SermonUploader-${{ matrix.os }}
+          path: |
+            dist/SermonUploader.exe
+            dist/SermonUploader
+          if-no-files-found: ignore
