@@ -25,7 +25,6 @@ jobs:
         id: setup-ffmpeg
         with:
           ffmpeg-version: release
-          architecture: ''
           linking-type: static
           github-token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
       # --- Common Steps ---
