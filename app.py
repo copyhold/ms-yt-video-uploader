@@ -36,16 +36,6 @@ class VideoProcessorApp:
         self.root.geometry("850x800") # Increased height for new buttons
 
         # --- Initialize instance variables FIRST ---
-        # ... rest of __init__ ...
-
-    def _on_meeting_type_change(self, event=None):
-        mt = self.meeting_type_var.get()
-        for lang in ["HE", "RU", "EN"]:
-            t, d = self.default_templates[mt][lang]
-            self.title_vars[lang].set(t)
-            self.desc_texts[lang].delete("1.0", tk.END)
-            self.desc_texts[lang].insert(tk.END, d)
-
         self.file_paths = {
             "video": tk.StringVar(),
             "audio_he": tk.StringVar(),
@@ -194,6 +184,14 @@ class VideoProcessorApp:
         self.root.after(100, self.process_log_queue)
         self._update_button_states() # Initial button state
         self.check_input_files_present() # Initial check for enabling process buttons
+
+    def _on_meeting_type_change(self, event=None):
+        mt = self.meeting_type_var.get()
+        for lang in ["HE", "RU", "EN"]:
+            t, d = self.default_templates[mt][lang]
+            self.title_vars[lang].set(t)
+            self.desc_texts[lang].delete("1.0", tk.END)
+            self.desc_texts[lang].insert(tk.END, d)
 
     def _on_mousewheel(self, event):
         if event.num == 4 or event.delta < 0: self.canvas.yview_scroll(1, "units")
