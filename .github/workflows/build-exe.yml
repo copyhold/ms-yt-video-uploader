@@ -42,28 +42,32 @@ jobs:
         run: |
           echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
 
-      # --- UNIFIED BUILD COMMAND ---
-      # We no longer need to bundle ffmpeg.exe on Windows because setup-ffmpeg adds it to the PATH.
-      # This means the build command is now identical for all platforms.
       - name: Build executable with PyInstaller
-        # Use a platform-agnostic shell and command
-        shell: bash 
+        shell: bash
         run: |
-          # The path separator for --add-data is ":" for bash on all platforms
           pyinstaller --name "SermonUploader" \
                       --onefile \
                       --windowed \
                       --add-data "client_secret.json:." \
                       app.py
+      
+      # Rename the output file to the consistent artifact name we defined in the matrix
+      - name: Rename Artifact
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            mv dist/SermonUploader.exe dist/${{ matrix.artifact_name }}
+          else
+            mv dist/SermonUploader dist/${{ matrix.artifact_name }}
+          fi
 
+      # Upload the consistently named executable as an artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SermonUploader-${{ matrix.os }}
-          path: |
-            dist/SermonUploader.exe
-            dist/SermonUploader
-          if-no-files-found: ignore
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.artifact_name }}
+          if-no-files-found: error # We expect a file, so fail if it's missing
 
   # ===============================================================
   #  JOB 2: Create a GitHub Release and upload build assets
