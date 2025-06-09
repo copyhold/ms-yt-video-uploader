@@ -8,6 +8,7 @@ import queue
 import subprocess
 import datetime
 import traceback # For detailed error logging
+from path_util import find_ffmpeg
 
 from youtube_uploader import get_authenticated_service, upload_video
 from ffmpeg_processor import (
@@ -618,11 +619,19 @@ class Tooltip:
 
 
 if __name__ == "__main__":
-    try: subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True, text=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        messagebox.showerror("FFmpeg Error", "FFmpeg not found."); exit()
+    if not find_ffmpeg():
+        messagebox.showerror(
+            "FFmpeg Error",
+            "FFmpeg could not be found.\n\nPlease install it and add it to your system's PATH."
+        )
+        exit()
+
     if not os.path.exists(CLIENT_SECRETS_FILE):
-         messagebox.showwarning("YouTube API Credentials", f"'{CLIENT_SECRETS_FILE}' not found. YouTube limited.")
+         messagebox.showwarning(
+            "YouTube API Credentials",
+            f"'{CLIENT_SECRETS_FILE}' not found. YouTube functionality will be disabled."
+        )
+
     main_root = tk.Tk()
     app = VideoProcessorApp(main_root)
     main_root.mainloop()

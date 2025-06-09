@@ -1,6 +1,10 @@
 # ffmpeg_processor.py
 import subprocess
 import os
+import platform
+from path_util import find_ffmpeg
+
+FFMPEG_PATH = find_ffmpeg()
 
 # --- Configuration for audio mixing ---
 # These volumes are relative. 1.0 is original volume.
@@ -12,29 +16,49 @@ HEBREW_DUCKED_VOL = 0.15 # Hebrew volume when translation is primary
 HEBREW_PRIMARY_VOL = 1.0
 TRANSLATION_SHOUTS_VOL = 0.5 # Translation volume for shouts during Hebrew primary
 
-def process_video_hebrew_only(video_path, hebrew_audio_path, output_path):
-    """Creates a video with only the Hebrew audio track."""
-    command = [
-        'ffmpeg', '-y', # -y to overwrite output files without asking
-        '-i', video_path,
-        '-i', hebrew_audio_path,
-        '-c:v', 'copy',          # Copy video stream without re-encoding
-        '-map', '0:v:0',         # Map video from first input
-        '-map', '1:a:0',         # Map audio from second input (Hebrew)
-        '-c:a', 'aac',           # Encode audio to AAC
-        '-b:a', '192k',          # Audio bitrate
-        output_path
-    ]
-    print(f"Running FFmpeg for Hebrew only: {' '.join(command)}")
+def _run_ffmpeg_command(command, output_path):
+    """A helper to run ffmpeg commands and handle errors."""
+    if not FFMPEG_PATH:
+        print("FATAL: FFmpeg executable not found. Cannot process video.")
+        return False
+        
+    # Add the discovered ffmpeg path to the command
+    command.insert(0, FFMPEG_PATH)
+    
+    print(f"Running FFmpeg: {' '.join(command)}")
     try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
+        # Set up subprocess arguments for cross-platform compatibility
+        kwargs = {
+            'check': True,
+            'capture_output': True,
+            'text': True
+        }
+        if platform.system() == "Windows":
+            # This flag prevents a console window from popping up on Windows
+            kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
+            
+        subprocess.run(command, **kwargs)
         print(f"Successfully created: {output_path}")
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error processing {output_path}:")
-        print(f"STDOUT: {e.stdout}")
-        print(f"STDERR: {e.stderr}")
+        print(f"STDERR: {e.stderr}") # stderr is usually more informative for ffmpeg
         return False
+
+def process_video_hebrew_only(video_path, hebrew_audio_path, output_path):
+    """Creates a video with only the Hebrew audio track."""
+    command = [
+        '-y',
+        '-i', video_path,
+        '-i', hebrew_audio_path,
+        '-c:v', 'copy',
+        '-map', '0:v:0',
+        '-map', '1:a:0',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        output_path
+    ]
+    return _run_ffmpeg_command(command, output_path)
 
 def process_video_with_translation(video_path, hebrew_audio_path, translation_audio_path,
                                    output_path, translation_only_segments):
@@ -84,29 +108,22 @@ def process_video_with_translation(video_path, hebrew_audio_path, translation_au
 
     filter_complex_str = ";".join(filter_complex_parts)
 
+    print(f"Running FFmpeg for mixed audio: {' '.join(command)}")
+
     command = [
-        'ffmpeg', '-y',
-        '-i', video_path,              # Input 0
-        '-i', hebrew_audio_path,       # Input 1
-        '-i', translation_audio_path,  # Input 2
+        '-y',
+        '-i', video_path,
+        '-i', hebrew_audio_path,
+        '-i', translation_audio_path,
         '-filter_complex', filter_complex_str,
-        '-map', '0:v:0',               # Map video from first input
-        '-map', '[a_mixed]',           # Map the mixed audio
+        '-map', '0:v:0',
+        '-map', '[a_mixed]',
         '-c:v', 'copy',
         '-c:a', 'aac',
         '-b:a', '192k',
         output_path
     ]
-    print(f"Running FFmpeg for mixed audio: {' '.join(command)}")
-    try:
-        subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"Successfully created: {output_path}")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Error processing {output_path}:")
-        print(f"STDOUT: {e.stdout}")
-        print(f"STDERR: {e.stderr}")
-        return False
+    return _run_ffmpeg_command(command, output_path)
 
 def parse_segments_string(segments_str):
     """Parses a string like "60-300, 450-600" into [(60,300), (450,600)]"""
