@@ -7,11 +7,6 @@ on:
     tags:
       - 'v*'
 
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch:
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
