@@ -13,6 +13,13 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            artifact_name: SermonUploader-windows-x64.exe
+          - os: macos-latest
+            artifact_name: SermonUploader-macos-arm64
+          - os: ubuntu-latest
+            artifact_name: SermonUploader-linux-x64
 
     steps:
       - name: Checkout repository
