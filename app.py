@@ -262,8 +262,12 @@ class VideoProcessorApp:
         else:
             self.process_and_upload_button.config(state=tk.DISABLED)
 
-        # Upload Existing: needs video and YouTube connection
-        if video_selected and yt_connected:
+        # Upload Existing: needs video, YouTube connection, and at least one processed file present
+        ready_file_exists = any(
+            path and os.path.isfile(path)
+            for path in self.processed_video_paths.values()
+        )
+        if video_selected and yt_connected and ready_file_exists:
             self.upload_existing_button.config(state=tk.NORMAL)
         else:
             self.upload_existing_button.config(state=tk.DISABLED)
