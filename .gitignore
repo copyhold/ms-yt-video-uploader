@@ -1,0 +1,19 @@
+# Build artifacts
+/dist/
+/build/
+/output_videos/
+*.json
+*.spec
+
+# Downloaded binaries and archives
+ffmpeg.exe
+ffmpeg.zip
+/ffmpeg_files/
+
+# Python virtual environment
+/venv/
+/.venv/
+
+# Python cache
+__pycache__/
+*.pyc
