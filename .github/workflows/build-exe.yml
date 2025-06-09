@@ -69,60 +69,27 @@ jobs:
   #  JOB 2: Create a GitHub Release and upload build assets
   # ===============================================================
   create_release:
-    # This job only runs when a tag is pushed, not on every push to 'main'.
-    # The `startsWith` condition checks the Git reference.
     if: startsWith(github.ref, 'refs/tags/v')
-    
-    # This job depends on the 'build' job completing successfully for all matrix platforms.
     needs: build
-    
     runs-on: ubuntu-latest
     permissions:
-      contents: write # This permission is required to create a release and upload assets.
+      contents: write # Required to create a release
 
     steps:
-      # Step 1: Create the initial Release entry.
-      # This generates automatic release notes and gives us a URL to upload assets to.
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
-          body: "See below for platform-specific downloads."
-          draft: false
-          prerelease: false
-
-      # Step 2: Download all the artifacts (executables) that the 'build' job created.
+      # Step 1: Download all the artifacts (executables) from the 'build' job
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
-          # The path where artifacts will be downloaded. Each artifact will be in its own subdirectory.
-          path: artifacts
+          # Download into a single directory named 'release-assets'
+          path: release-assets
 
-      # Step 3: Upload each artifact as a release asset.
-      - name: Upload Windows Asset
-        uses: actions/upload-release-asset@v1
+      # Step 2: Create the release and upload all files from the 'release-assets' directory
+      - name: Create Release and Upload Assets
+        uses: ncipollo/release-action@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/SermonUploader-windows-latest/SermonUploader.exe
-          asset_name: SermonUploader-windows-x64.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
-
-      - name: Upload macOS Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/SermonUploader-macos-latest/SermonUploader
-          asset_name: SermonUploader-macos-x64
-          asset_content_type: application/octet-stream
-
-      - name: Upload Linux Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./artifacts/SermonUploader-ubuntu-latest/SermonUploader
-          asset_name: SermonUploader-linux-x64
-          asset_content_type: application/octet-stream
+          # This is the path to the files to upload. The wildcard '**/*' uploads all files in all subdirectories.
+          artifacts: "release-assets/**/*"
+          # This token is provided by GitHub Actions automatically.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Automatically generate release notes from commits since the last release.
+          generateReleaseNotes: true
