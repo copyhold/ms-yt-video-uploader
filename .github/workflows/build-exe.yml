@@ -34,8 +34,8 @@ jobs:
         run: echo "${{ runner.os }} on ${{ runner.arch }}"
       - if: runner.os != 'macOS' || runner.arch != 'ARM64'
         uses: FedericoCarboni/setup-ffmpeg@v3
-      - if: runner.os == 'macOS' && runner.arch == 'ARM64'
-        run: brew install ffmpeg
+     #- if: runner.os == 'macOS' && runner.arch == 'ARM64'
+     #  run: brew install ffmpeg
 
       # --- Common Steps ---
       - name: Install Python dependencies
