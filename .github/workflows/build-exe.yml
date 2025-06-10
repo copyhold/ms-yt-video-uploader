@@ -47,7 +47,7 @@ jobs:
       - name: Create client_secret.json
         shell: bash
         run: |
-          echo "${{ secrets.CLIENT_SECRET_JSON }}" > client_secret.json
+          echo '${{ secrets.CLIENT_SECRET_JSON }}' > client_secret.json
 
       - name: Build executable with PyInstaller
         shell: bash
