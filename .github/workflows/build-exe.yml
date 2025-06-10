@@ -47,9 +47,9 @@ jobs:
       - name: Create client_secret.json
         shell: bash
         run: |
-          echo ${{ secrets.CLIENT_SECRET_JSON }} > client_secret.json
-          cat client_secret.json
-          ls -l
+          cat << EOF > ./client_secret.json
+          ${{ secrets.CLIENT_SECRET_JSON }}
+          EOF
 
       - name: Build executable with PyInstaller
         shell: bash
@@ -59,7 +59,9 @@ jobs:
                       --windowed \
                       --add-data "client_secret.json:." \
                       app.py
-      
+      - name: test the dir
+        shell: bash
+        run: ls -la 
       # Rename the output file to the consistent artifact name we defined in the matrix
       - name: Rename Artifact
         shell: bash
