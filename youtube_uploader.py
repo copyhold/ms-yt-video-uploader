@@ -6,13 +6,14 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import threading # For cancel_event
+from path_util import resource_path
 
 # If modifying these SCOPES, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
 API_SERVICE_NAME = 'youtube'
 API_VERSION = 'v3'
-CLIENT_SECRETS_FILE = 'client_secret.json' # Make sure this file is in the same directory
-TOKEN_FILE = 'token.json' # Stores the user's access and refresh tokens
+CLIENT_SECRETS_FILE = resource_path('client_secret.json')
+TOKEN_FILE = resource_path('token.json')
 
 def get_authenticated_service():
     """Logs in the user or loads existing credentials and returns a YouTube service object."""

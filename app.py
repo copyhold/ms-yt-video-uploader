@@ -8,7 +8,7 @@ import queue
 import subprocess
 import datetime
 import traceback # For detailed error logging
-from path_util import find_ffmpeg
+from path_util import find_ffmpeg, resource_path
 
 from youtube_uploader import get_authenticated_service, upload_video
 from ffmpeg_processor import (
@@ -28,7 +28,7 @@ def create_custom_output_filename(meeting_type, lang_suffix, output_dir="output_
         os.makedirs(output_dir)
     return os.path.join(output_dir, filename)
 
-CLIENT_SECRETS_FILE = 'client_secret.json'
+CLIENT_SECRETS_FILE = resource_path("client_secret.json")
 
 class VideoProcessorApp:
     def __init__(self, root):
