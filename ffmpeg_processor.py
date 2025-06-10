@@ -108,8 +108,6 @@ def process_video_with_translation(video_path, hebrew_audio_path, translation_au
 
     filter_complex_str = ";".join(filter_complex_parts)
 
-    print(f"Running FFmpeg for mixed audio: {' '.join(command)}")
-
     command = [
         '-y',
         '-i', video_path,
@@ -123,6 +121,8 @@ def process_video_with_translation(video_path, hebrew_audio_path, translation_au
         '-b:a', '192k',
         output_path
     ]
+
+    print(f"Running FFmpeg for mixed audio: {' '.join(command)}")
     return _run_ffmpeg_command(command, output_path)
 
 def parse_segments_string(segments_str):
